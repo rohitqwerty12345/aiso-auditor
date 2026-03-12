@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from openai import OpenAI
 import requests
 import json
@@ -15,7 +15,6 @@ st.markdown("""
         background: linear-gradient(90deg, #3b82f6, #8b5cf6); 
         color: white; border: none; padding: 15px; font-weight: bold; border-radius: 10px; width: 100%;
     }
-    .report-box { background-color: #0a0a0a; border: 1px solid #1a1a1a; padding: 25px; border-radius: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -39,34 +38,48 @@ if st.button("EXECUTE PRO FORENSIC AUDIT"):
     else:
         with st.spinner("Pro Agents are probing LLM Search results..."):
             try:
-                # 1. THE INQUISITOR (Gemini 1.5 Pro Fix)
-                genai.configure(api_key=gemini_api)
-                # Using 'gemini-1.5-pro-latest' for the Pro tier
-                gem_model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
-                gem_res = gem_model.generate_content(f"Compare {brand} and {competitor}: {query}").text
+                # 1. THE INQUISITOR (New Google GenAI SDK)
+                client_gemini = genai.Client(api_key=gemini_api)
+                # Using the stable 'gemini-1.5-pro' identifier for the new SDK
+                gem_res = client_gemini.models.generate_content(
+                    model='gemini-1.5-pro', 
+                    contents=f"Compare {brand} and {competitor}: {query}"
+                ).text
 
                 # 2. THE ANALYST (GPT-4o)
                 oa_client = OpenAI(api_key=openai_api)
                 gpt_res = oa_client.chat.completions.create(
-                    model="gpt-4o", # Use "gpt-4o" for current pro model
+                    model="gpt-4o",
                     messages=[{"role": "user", "content": f"Compare {brand} and {competitor}: {query}"}]
                 ).choices[0].message.content
 
                 # 3. FORENSIC SEARCH (Tavily)
                 tavily_data = requests.post("https://api.tavily.com/search", json={
-                    "api_key": tavily_api, "query": f"Why is {competitor} better than {brand}?", "search_depth": "advanced"
+                    "api_key": tavily_api, 
+                    "query": f"Why is {competitor} recommended over {brand} for RBI Grade B preparation?", 
+                    "search_depth": "advanced"
                 }).json()
 
-                # 4. THE STRATEGIST
-                strat_prompt = f"Data: {gem_res} {gpt_res} {json.dumps(tavily_data)}. Task: Build 3-step action plan."
-                action_plan = gem_model.generate_content(strat_prompt).text
+                # 4. THE STRATEGIST (Agentic Logic)
+                strat_prompt = f"""
+                Data: {gem_res} 
+                {gpt_res} 
+                Search Results: {json.dumps(tavily_data)}
+                
+                Task: Build a 3-step action plan for {brand} to fix their AI reputation.
+                """
+                action_plan = client_gemini.models.generate_content(
+                    model='gemini-1.5-pro', 
+                    contents=strat_prompt
+                ).text
 
-                # DISPLAY
+                # --- DISPLAY ---
                 tab1, tab2, tab3 = st.tabs(["AI Perception", "Forensic Evidence", "Action Plan"])
                 with tab1:
-                    st.info(f"**Gemini 1.5 Pro:** {gem_res}")
-                    st.success(f"**GPT-4o:** {gpt_res}")
+                    st.info(f"**Gemini 1.5 Pro Verdict:**\n\n{gem_res}")
+                    st.success(f"**GPT-4o Verdict:**\n\n{gpt_res}")
                 with tab2:
+                    st.markdown("**Top Sources Feeding the AI Perception:**")
                     for r in tavily_data.get('results', []):
                         st.markdown(f"🔗 [{r['title']}]({r['url']})")
                 with tab3:
