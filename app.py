@@ -4,89 +4,108 @@ from openai import OpenAI
 import requests
 import json
 
-# --- CONFIG & UI ---
-st.set_page_config(page_title="AISO Auditor | Pro Brand Intelligence", layout="wide")
+# --- PRE-CONFIG & UI ---
+st.set_page_config(page_title="AISO Brand Auditor Pro", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #000; color: #fff; }
-    .stTextInput>div>div>input { background-color: #111; color: white; border: 1px solid #333; }
-    .stButton>button { 
-        background: linear-gradient(90deg, #3b82f6, #8b5cf6); 
-        color: white; border: none; padding: 15px; font-weight: bold; border-radius: 10px; width: 100%;
+    .main { background-color: #0d0d0d; color: #ffffff; }
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea { 
+        background-color: #1a1a1a; color: white; border: 1px solid #333; border-radius: 8px;
     }
+    .stButton>button { 
+        background: linear-gradient(90deg, #2563eb, #7c3aed); 
+        color: white; border: none; padding: 12px; font-weight: bold; border-radius: 10px; width: 100%;
+    }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- SIDEBAR: KEYS ---
 with st.sidebar:
-    st.title("🛡️ Secure Logic Hub")
+    st.title("🔐 API Logic Center")
     gemini_api = st.text_input("Gemini API Key", type="password")
     openai_api = st.text_input("OpenAI API Key", type="password")
     tavily_api = st.text_input("Tavily API Key", type="password")
+    st.markdown("---")
+    st.caption("Running: Gemini 3.1 Pro & GPT-4o")
 
-# --- MAIN UI ---
+# --- MAIN DASHBOARD ---
 st.title("⚡ AISO Brand Intelligence Hub")
+st.markdown("#### Audit your reputation in the AI Search Economy")
+
 col1, col2 = st.columns(2)
-with col1: brand = st.text_input("Your Brand", value="EduTap")
-with col2: competitor = st.text_input("Competitor", value="Anuj Jindal")
-query = st.text_area("The Strategic Probe", value="Who provides the most comprehensive RBI Grade B course?")
+with col1:
+    brand = st.text_input("Target Brand", value="EduTap")
+with col2:
+    competitor = st.text_input("Competitors (Comma separated)", value="Anuj Jindal, Oliveboard")
+
+query = st.text_area("Strategic Search Probe", value="Who provides the most comprehensive RBI Grade B course with the best toppers record?")
 
 if st.button("EXECUTE PRO FORENSIC AUDIT"):
     if not (gemini_api and openai_api and tavily_api):
-        st.error("Missing API Keys.")
+        st.error("Missing API Keys in the sidebar.")
     else:
-        with st.spinner("Pro Agents are probing LLM Search results..."):
+        with st.spinner("Pro Agents are analyzing LLM perceptions and search evidence..."):
             try:
-                # 1. THE INQUISITOR (Using the new Gemini 3 Pro model)
+                # 1. INITIALIZE CLIENTS
                 client_gemini = genai.Client(api_key=gemini_api)
-                
-                # NOTE: gemini-3-pro is the current pro model in 2026. 
-                # If your key is restricted, 'gemini-3-flash' is the stable alternative.
-                try:
-                    gem_res = client_gemini.models.generate_content(
-                        model='gemini-3-pro', 
-                        contents=f"Compare {brand} and {competitor}: {query}"
-                    ).text
-                except:
-                    # Fallback to Flash if Pro is not available on your tier
-                    gem_res = client_gemini.models.generate_content(
-                        model='gemini-3-flash', 
-                        contents=f"Compare {brand} and {competitor}: {query}"
-                    ).text
+                client_openai = OpenAI(api_key=openai_api)
 
-                # 2. THE ANALYST (GPT-4o)
-                oa_client = OpenAI(api_key=openai_api)
-                gpt_res = oa_client.chat.completions.create(
+                # 2. PHASE 1: GEMINI PROBE (Gemini 3 Flash)
+                # Using exact slug from documentation - no prefix
+                gem_res = client_gemini.models.generate_content(
+                    model='gemini-3-flash-preview', 
+                    contents=f"Conduct a detailed brand audit. Compare {brand} vs {competitor} for this query: {query}"
+                ).text
+
+                # 3. PHASE 2: CHATGPT PROBE (GPT-4o)
+                gpt_res = client_openai.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "user", "content": f"Compare {brand} and {competitor}: {query}"}]
+                    messages=[{"role": "user", "content": f"Conduct a detailed brand audit. Compare {brand} vs {competitor} for this query: {query}"}]
                 ).choices[0].message.content
 
-                # 3. FORENSIC SEARCH (Tavily)
+                # 4. PHASE 3: TAVILY FORENSIC SEARCH
                 tavily_data = requests.post("https://api.tavily.com/search", json={
-                    "api_key": tavily_api, 
-                    "query": f"Why is {competitor} recommended over {brand} for RBI Grade B preparation?", 
+                    "api_key": tavily_api,
+                    "query": f"Why is {competitor} often preferred over {brand}? Find criticisms and authority gaps.",
                     "search_depth": "advanced"
                 }).json()
 
-                # 4. THE STRATEGIST (Using the Pro model for deep logic)
-                strat_prompt = f"Analyze: {gem_res} and {gpt_res}. Findings: {json.dumps(tavily_data)}. Create a 3-step action plan."
+                # 5. PHASE 4: THE STRATEGIST (Gemini 3.1 Pro)
+                # Using Pro for the heavy-lifting strategic summary
+                strat_input = f"Gemini Sentiment: {gem_res}\n\nGPT Sentiment: {gpt_res}\n\nSearch Evidence: {json.dumps(tavily_data)}"
                 action_plan = client_gemini.models.generate_content(
-                    model='gemini-3-pro', 
-                    contents=strat_prompt
+                    model='gemini-3.1-pro-preview', 
+                    contents=f"You are a Senior Strategist. Based on this data, create a 3-step revenue recovery plan for {brand}:\n\n{strat_input}"
                 ).text
 
-                # --- DISPLAY ---
-                tab1, tab2, tab3 = st.tabs(["AI Perception", "Forensic Evidence", "Action Plan"])
+                # --- DASHBOARD OUTPUT ---
+                st.divider()
+                tab1, tab2, tab3 = st.tabs(["📊 AI Perception", "🔍 Forensic Evidence", "💡 Strategic Fix"])
+
                 with tab1:
-                    st.info(f"**Gemini Verdict:**\n\n{gem_res}")
-                    st.success(f"**ChatGPT Verdict:**\n\n{gpt_res}")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("### Gemini Verdict")
+                        st.info(gem_res)
+                    with c2:
+                        st.markdown("### ChatGPT Verdict")
+                        st.success(gpt_res)
+
                 with tab2:
-                    st.markdown("**Top Sources Feeding the AI Perception:**")
-                    for r in tavily_data.get('results', []):
-                        st.markdown(f"🔗 [{r['title']}]({r['url']})")
+                    st.markdown("### Top Sources Influencing AI Decisions")
+                    if 'results' in tavily_data:
+                        for r in tavily_data['results']:
+                            st.markdown(f"📍 **[{r['title']}]({r['url']})**")
+                            st.caption(f"Relevance Score: {r.get('score', 'N/A')}")
+                            st.write(r.get('content', '')[:300] + "...")
+                            st.markdown("---")
+
                 with tab3:
-                    st.write(action_plan)
-                
+                    st.markdown("### Executive Action Plan")
+                    st.markdown(action_plan)
+
             except Exception as e:
                 st.error(f"Audit failed: {str(e)}")
