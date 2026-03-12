@@ -38,13 +38,22 @@ if st.button("EXECUTE PRO FORENSIC AUDIT"):
     else:
         with st.spinner("Pro Agents are probing LLM Search results..."):
             try:
-                # 1. THE INQUISITOR (New Google GenAI SDK)
+                # 1. THE INQUISITOR (Using the new Gemini 3 Pro model)
                 client_gemini = genai.Client(api_key=gemini_api)
-                # Using the stable 'gemini-1.5-pro' identifier for the new SDK
-                gem_res = client_gemini.models.generate_content(
-                    model='gemini-1.5-pro', 
-                    contents=f"Compare {brand} and {competitor}: {query}"
-                ).text
+                
+                # NOTE: gemini-3-pro is the current pro model in 2026. 
+                # If your key is restricted, 'gemini-3-flash' is the stable alternative.
+                try:
+                    gem_res = client_gemini.models.generate_content(
+                        model='gemini-3-pro', 
+                        contents=f"Compare {brand} and {competitor}: {query}"
+                    ).text
+                except:
+                    # Fallback to Flash if Pro is not available on your tier
+                    gem_res = client_gemini.models.generate_content(
+                        model='gemini-3-flash', 
+                        contents=f"Compare {brand} and {competitor}: {query}"
+                    ).text
 
                 # 2. THE ANALYST (GPT-4o)
                 oa_client = OpenAI(api_key=openai_api)
@@ -60,24 +69,18 @@ if st.button("EXECUTE PRO FORENSIC AUDIT"):
                     "search_depth": "advanced"
                 }).json()
 
-                # 4. THE STRATEGIST (Agentic Logic)
-                strat_prompt = f"""
-                Data: {gem_res} 
-                {gpt_res} 
-                Search Results: {json.dumps(tavily_data)}
-                
-                Task: Build a 3-step action plan for {brand} to fix their AI reputation.
-                """
+                # 4. THE STRATEGIST (Using the Pro model for deep logic)
+                strat_prompt = f"Analyze: {gem_res} and {gpt_res}. Findings: {json.dumps(tavily_data)}. Create a 3-step action plan."
                 action_plan = client_gemini.models.generate_content(
-                    model='gemini-1.5-pro', 
+                    model='gemini-3-pro', 
                     contents=strat_prompt
                 ).text
 
                 # --- DISPLAY ---
                 tab1, tab2, tab3 = st.tabs(["AI Perception", "Forensic Evidence", "Action Plan"])
                 with tab1:
-                    st.info(f"**Gemini 1.5 Pro Verdict:**\n\n{gem_res}")
-                    st.success(f"**GPT-4o Verdict:**\n\n{gpt_res}")
+                    st.info(f"**Gemini Verdict:**\n\n{gem_res}")
+                    st.success(f"**ChatGPT Verdict:**\n\n{gpt_res}")
                 with tab2:
                     st.markdown("**Top Sources Feeding the AI Perception:**")
                     for r in tavily_data.get('results', []):
