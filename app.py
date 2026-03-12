@@ -25,9 +25,9 @@ st.markdown("""
 with st.sidebar:
     st.title("🛡️ Secure Logic Hub")
     st.subheader("API Access (Pro Models)")
-    gemini_api = st.text_input("Gemini API Key", type="password")
-    openai_api = st.text_input("OpenAI API Key", type="password")
-    tavily_api = st.text_input("Tavily API Key", type="password")
+    gemini_api = st.text_input("AIzaSyDrfM-Jl7QlGYwvp_nvvB9mNokQV8Jv3nE", type="password")
+    openai_api = st.text_input("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", type="password")
+    tavily_api = st.text_input("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", type="password")
     st.markdown("---")
     st.caption("This tool uses Gemini 1.5 Pro & GPT-4o for enterprise-grade analysis.")
 
