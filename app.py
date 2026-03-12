@@ -3,6 +3,7 @@ from google import genai
 from openai import OpenAI
 import requests
 import json
+import pandas as pd
 
 # --- PRE-CONFIG & UI STYLING ---
 st.set_page_config(page_title="AISO Brand Auditor Pro", layout="wide")
@@ -17,21 +18,18 @@ st.markdown("""
         background: linear-gradient(90deg, #2563eb, #7c3aed); 
         color: white; border: none; padding: 12px; font-weight: bold; border-radius: 10px; width: 100%;
     }
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; font-weight: bold; }
-    .report-card { background-color: #111; padding: 20px; border-radius: 10px; border-left: 5px solid #3b82f6; }
+    .stMetric { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #222; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR: KEYS ---
 with st.sidebar:
     st.title("🔐 AISO Logic Hub")
-    st.markdown("Enter your Pro API keys to begin the forensic audit.")
     gemini_api = st.text_input("Gemini API Key", type="password")
     openai_api = st.text_input("OpenAI API Key", type="password")
     tavily_api = st.text_input("Tavily API Key", type="password")
     st.markdown("---")
-    st.caption("Models: Gemini 3.1 Pro Preview & GPT-4o")
+    st.info("**CEO Pitch Tip:** Use the 'Evidence' tab to show clients exactly which links are poisoning their AI reputation.")
 
 # --- MAIN DASHBOARD ---
 st.title("⚡ AISO Brand Intelligence Hub")
@@ -41,7 +39,7 @@ col1, col2 = st.columns(2)
 with col1:
     brand = st.text_input("Your Brand", value="EduTap")
 with col2:
-    competitor = st.text_input("Competitor(s)", value="Anuj Jindal, Oliveboard")
+    competitor = st.text_input("Primary Competitor", value="Anuj Jindal")
 
 query = st.text_area("The Strategic Search Probe", 
                      value="Who provides the most comprehensive RBI Grade B course with the best toppers record?")
@@ -50,79 +48,70 @@ if st.button("EXECUTE PRO FORENSIC AUDIT"):
     if not (gemini_api and openai_api and tavily_api):
         st.error("Please provide all API keys in the sidebar.")
     else:
-        with st.spinner("Pro Agents are analyzing LLM training data and search evidence..."):
+        with st.spinner("Pro Agents are probing the AI Hive-Mind..."):
             try:
                 # 1. INITIALIZE CLIENTS
                 client_gem = genai.Client(api_key=gemini_api)
                 client_oa = OpenAI(api_key=openai_api)
 
-                # 2. PHASE 1: GEMINI PROBE (Gemini 3 Flash for speed)
+                # 2. PHASE 1: GEMINI PROBE
                 gem_res = client_gem.models.generate_content(
                     model='gemini-3-flash-preview', 
-                    contents=f"You are a neutral buyer. Answer this: {query}. Explicitly compare {brand} and {competitor}."
+                    contents=f"Compare {brand} and {competitor}: {query}"
                 ).text
 
-                # 3. PHASE 2: CHATGPT PROBE (GPT-4o)
+                # 3. PHASE 2: CHATGPT PROBE
                 gpt_res = client_oa.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "user", "content": f"You are a neutral buyer. Answer this: {query}. Explicitly compare {brand} and {competitor}."}]
+                    messages=[{"role": "user", "content": f"Compare {brand} and {competitor}: {query}"}]
                 ).choices[0].message.content
 
-                # 4. PHASE 3: TAVILY FORENSIC SEARCH (The 'Training Data')
-                search_query = f"Why do people prefer {competitor} over {brand}? Find specific criticisms and mentor data gaps."
+                # 4. PHASE 3: TAVILY FORENSIC SEARCH
                 tavily_data = requests.post("https://api.tavily.com/search", json={
                     "api_key": tavily_api,
-                    "query": search_query,
+                    "query": f"Why is {competitor} better than {brand}? Find criticisms.",
                     "search_depth": "advanced"
                 }).json()
 
-                # 5. PHASE 4: THE STRATEGIST (AISO Specific Intelligence)
-                # This prompt forces the AI to focus on DATA and SEARCH results, not general marketing.
-                strat_prompt = f"""
-                You are a Senior AISO (AI Search Optimization) Specialist. 
-                
-                INPUT DATA:
-                1. Gemini Verdict: {gem_res}
-                2. GPT Verdict: {gpt_res}
-                3. Search Evidence: {json.dumps(tavily_data)}
-                
-                TASK:
-                Identify why AI models are biased toward {competitor} and create an 'AI Data Correction Plan' for {brand}.
-                
-                FOCUS AREAS:
-                - STEP 1: SOURCE SUPPRESSION: Identify the URLs feeding negative info and tell us how to 'neutralize' their impact on AI training.
-                - STEP 2: AUTHORITY INJECTION: What specific keywords or credentials (e.g., 'Ph.D.', '65% Success Rate') are we missing in our web-data?
-                - STEP 3: TECHNICAL SCHEMA: Provide the exact JSON-LD code needed to fix our Brand perception for LLM crawlers.
-                """
-                
-                action_plan = client_gem.models.generate_content(
-                    model='gemini-3.1-pro-preview', 
-                    contents=strat_prompt
-                ).text
+                # 5. PHASE 4: QUANTITATIVE SCORING (For the Chart)
+                scoring_prompt = f"Based on: {gem_res} and {gpt_res}, give a Trust Score (0-100) for {brand} and {competitor}. Return ONLY JSON: {{\"brand_score\": X, \"comp_score\": Y}}"
+                score_json = client_gem.models.generate_content(model='gemini-3-flash-preview', contents=scoring_prompt).text
+                scores = json.loads(score_json.strip().replace("```json", "").replace("```", ""))
 
-                # --- DASHBOARD OUTPUT ---
+                # 6. PHASE 5: THE STRATEGIST (AISO Specific)
+                strat_prompt = f"Data: {gem_res} {gpt_res} {json.dumps(tavily_data)}. Create a 3-step AISO plan to fix {brand} perception."
+                action_plan = client_gem.models.generate_content(model='gemini-3.1-pro-preview', contents=strat_prompt).text
+
+                # --- DASHBOARD VISUALS ---
                 st.divider()
-                tab1, tab2, tab3 = st.tabs(["📊 AI Perception", "🔍 Forensic Evidence", "💡 AISO Action Plan"])
+                st.subheader("📊 Competitor Benchmarking (AI Trust Score)")
+                
+                chart_data = pd.DataFrame({
+                    "Entity": [brand, competitor],
+                    "Trust Score": [scores['brand_score'], scores['comp_score']]
+                })
+                st.bar_chart(data=chart_data, x="Entity", y="Trust Score", color="Entity")
+                
+                m1, m2 = st.columns(2)
+                m1.metric(f"{brand} Trust", f"{scores['brand_score']}%", f"{scores['brand_score'] - scores['comp_score']}%")
+                m2.metric(f"{competitor} Trust", f"{scores['comp_score']}%")
 
-                with tab1:
+                # --- TABS ---
+                st.divider()
+                t1, t2, t3 = st.tabs(["🤖 AI Perception", "🔍 Forensic Evidence", "🎯 AISO Action Plan"])
+
+                with t1:
                     c1, c2 = st.columns(2)
-                    with c1:
-                        st.markdown("### Gemini 3.1 Pro Verdict")
-                        st.info(gem_res)
-                    with c2:
-                        st.markdown("### GPT-4o Verdict")
-                        st.success(gpt_res)
+                    c1.info(f"**Gemini Verdict:**\n\n{gem_res}")
+                    c2.success(f"**GPT-4o Verdict:**\n\n{gpt_res}")
 
-                with tab2:
-                    st.markdown("### Top Sources Influencing the AI 'Hive-Mind'")
-                    if 'results' in tavily_data:
-                        for r in tavily_data['results']:
-                            st.markdown(f"📍 **[{r['title']}]({r['url']})**")
-                            st.write(r.get('content', '')[:300] + "...")
-                            st.markdown("---")
+                with t2:
+                    st.markdown("### Evidence identified in AI Training Data")
+                    for r in tavily_data.get('results', []):
+                        st.markdown(f"📍 **[{r['title']}]({r['url']})**")
+                        st.write(r.get('content', '')[:250] + "...")
 
-                with tab3:
-                    st.markdown("### Executive AISO Correction Plan")
+                with t3:
                     st.markdown(action_plan)
 
             except Exception as e:
